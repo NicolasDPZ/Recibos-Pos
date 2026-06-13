@@ -1,6 +1,5 @@
 package com.example.recibows.ui.theme
 
-import androidx.compose.material3.CardColors
 import androidx.compose.ui.graphics.Color
 
 val PosBlue     = Color(0xFF1976D2)

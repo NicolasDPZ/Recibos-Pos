@@ -34,17 +34,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.example.recibows.EstadoApp
+import com.example.recibows.CarritoViewModel
 import com.example.recibows.componentes.LineaCarrito
 import com.example.recibows.ui.theme.PosBg
 import com.example.recibows.ui.theme.PosBlue
@@ -54,11 +57,11 @@ import com.example.recibows.ui.theme.PosRed
 @Composable
 fun Carrito(
     navController: NavController,
+    vm: CarritoViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    // Leemos directamente del estado global
-    val lineas = EstadoApp.carrito
-    val total  = EstadoApp.totalCarrito
+    val lineas = vm.lineas
+    val total  = vm.total
 
     Scaffold(
         containerColor = PosBg,
@@ -85,7 +88,7 @@ fun Carrito(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Subtotal (${EstadoApp.itemsCarrito} items)",
+                            text = "Subtotal (${vm.items} items)",
                             color = Color.Gray,
                             fontSize = 13.sp
                         )
@@ -118,8 +121,11 @@ fun Carrito(
 
                     Button(
                         onClick = {
-                            navController.navigate("recibo") {
-                                popUpTo("carrito") { inclusive = true }
+                            // Guarda en Room y navega al recibo con el id
+                            vm.cobrar { ventaId ->
+                                navController.navigate("recibo/$ventaId") {
+                                    popUpTo("carrito") { inclusive = true }
+                                }
                             }
                         },
                         enabled = lineas.isNotEmpty(),
@@ -164,9 +170,9 @@ fun Carrito(
                 items(lineas, key = { it.producto.id }) { linea ->
                     LineaCarritoItem(
                         linea      = linea,
-                        onSumar    = { EstadoApp.sumarCantidad(linea.producto.id) },
-                        onRestar   = { EstadoApp.restarCantidad(linea.producto.id) },
-                        onEliminar = { EstadoApp.eliminarLinea(linea.producto.id) }
+                        onSumar    = { vm.sumar(linea.producto.id) },
+                        onRestar   = { vm.restar(linea.producto.id) },
+                        onEliminar = { vm.eliminar(linea.producto.id) }
                     )
                 }
             }
@@ -232,10 +238,4 @@ fun LineaCarritoItem(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewCarrito() {
-    Carrito(navController = rememberNavController())
 }
