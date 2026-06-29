@@ -1,43 +1,13 @@
 package com.example.recibows.pantallas
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,7 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.recibows.AtendienteViewModel
 import com.example.recibows.CarritoViewModel
+import com.example.recibows.EstadoApp
 import com.example.recibows.componentes.LineaCarrito
 import com.example.recibows.ui.theme.PosBg
 import com.example.recibows.ui.theme.PosBlue
@@ -58,10 +30,17 @@ import com.example.recibows.ui.theme.PosRed
 fun Carrito(
     navController: NavController,
     vm: CarritoViewModel = viewModel(),
+    atendienteVm: AtendienteViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    val lineas = vm.lineas
-    val total  = vm.total
+    val lineas      = vm.lineas
+    val total       = vm.total
+    val atendiente  by EstadoApp.atendienteActual
+    val atendientes by atendienteVm.atendientes.collectAsState()
+
+    var showSelectorAtendiente by remember { mutableStateOf(false) }
+    var showNuevoAtendiente    by remember { mutableStateOf(false) }
+    var nuevoNombre            by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = PosBg,
@@ -70,7 +49,7 @@ fun Carrito(
                 title = { Text("Carrito", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.Default.ArrowBack, "Volver")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -83,26 +62,26 @@ fun Carrito(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
+                    // ── Selector de atendiente ────────────────────────────────
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Subtotal (${vm.items} items)",
-                            color = Color.Gray,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            text = "\$${"%,d".format(total).replace(',', '.')}",
-                            color = Color.Gray,
-                            fontSize = 13.sp
-                        )
+                        Text("Atendiente:", fontSize = 13.sp, color = Color.Gray)
+                        TextButton(onClick = { showSelectorAtendiente = true }) {
+                            Text(
+                                text = atendiente?.nombre ?: "Seleccionar ▾",
+                                color = if (atendiente != null) PosBlue else PosRed,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
 
-                    Spacer(Modifier.height(4.dp))
                     Divider()
                     Spacer(Modifier.height(8.dp))
 
+                    // ── Total ─────────────────────────────────────────────────
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -110,7 +89,7 @@ fun Carrito(
                     ) {
                         Text("Total", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text(
-                            text = "\$${"%,d".format(total).replace(',', '.')}",
+                            "\$${"%,d".format(total).replace(',', '.')}",
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp,
                             color = PosBlue
@@ -119,12 +98,16 @@ fun Carrito(
 
                     Spacer(Modifier.height(12.dp))
 
+                    // ── Botón cobrar ──────────────────────────────────────────
                     Button(
                         onClick = {
-                            // Guarda en Room y navega al recibo con el id
-                            vm.cobrar { ventaId ->
-                                navController.navigate("recibo/$ventaId") {
-                                    popUpTo("carrito") { inclusive = true }
+                            if (atendiente == null) {
+                                showSelectorAtendiente = true
+                            } else {
+                                vm.cobrar { ventaId ->
+                                    navController.navigate("recibo/$ventaId") {
+                                        popUpTo("carrito") { inclusive = true }
+                                    }
                                 }
                             }
                         },
@@ -134,8 +117,11 @@ fun Carrito(
                         colors = ButtonDefaults.buttonColors(containerColor = PosBlue)
                     ) {
                         Text(
-                            text = "Cobrar  \$${"%,d".format(total).replace(',', '.')}",
-                            fontSize = 16.sp,
+                            text = if (atendiente == null)
+                                "Selecciona un atendiente primero"
+                            else
+                                "Cobrar  \$${"%,d".format(total).replace(',', '.')}",
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -143,7 +129,6 @@ fun Carrito(
             }
         }
     ) { padding ->
-
         if (lineas.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -155,7 +140,7 @@ fun Carrito(
                     Text("El carrito está vacío", fontSize = 16.sp, color = Color.Gray)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Agrega productos desde la pantalla de venta",
+                        "Agrega productos desde la pantalla de venta",
                         fontSize = 13.sp,
                         color = Color.LightGray
                     )
@@ -178,8 +163,101 @@ fun Carrito(
             }
         }
     }
+
+    // ── Diálogo selector de atendiente ────────────────────────────────────────
+    if (showSelectorAtendiente) {
+        AlertDialog(
+            onDismissRequest = { showSelectorAtendiente = false },
+            title = { Text("Seleccionar atendiente", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Column {
+                    if (atendientes.isEmpty()) {
+                        Text(
+                            "No hay atendientes creados.\nCrea uno con el botón de abajo.",
+                            color = Color.Gray,
+                            fontSize = 13.sp
+                        )
+                    } else {
+                        atendientes.forEach { a ->
+                            TextButton(
+                                onClick = {
+                                    atendienteVm.seleccionar(a)
+                                    showSelectorAtendiente = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        a.nombre,
+                                        fontSize = 15.sp,
+                                        color = if (atendiente?.id == a.id) PosBlue else Color.Black
+                                    )
+                                    if (atendiente?.id == a.id) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            null,
+                                            tint = PosBlue,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Divider()
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showNuevoAtendiente = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("+ Nuevo atendiente") }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showSelectorAtendiente = false }) { Text("Cerrar") }
+            }
+        )
+    }
+
+    // ── Diálogo crear nuevo atendiente ────────────────────────────────────────
+    if (showNuevoAtendiente) {
+        AlertDialog(
+            onDismissRequest = { showNuevoAtendiente = false },
+            title = { Text("Nuevo atendiente", fontWeight = FontWeight.SemiBold) },
+            text = {
+                OutlinedTextField(
+                    value = nuevoNombre,
+                    onValueChange = { nuevoNombre = it },
+                    label = { Text("Nombre") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nuevoNombre.isNotBlank()) {
+                            atendienteVm.agregar(nuevoNombre)
+                            nuevoNombre = ""
+                            showNuevoAtendiente = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PosBlue)
+                ) { Text("Crear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNuevoAtendiente = false }) { Text("Cancelar") }
+            }
+        )
+    }
 }
 
+// ── Fila de item en el carrito ─────────────────────────────────────────────────
 @Composable
 fun LineaCarritoItem(
     linea: LineaCarrito,
@@ -196,22 +274,19 @@ fun LineaCarritoItem(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(linea.producto.nombre, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text("\$$precioUnit c/u", fontSize = 12.sp, color = Color.Gray)
             }
-
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onRestar, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Remove, null, Modifier.size(16.dp), tint = PosBlue)
                 }
                 Text(
-                    text = "${linea.cantidad}",
+                    "${linea.cantidad}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     modifier = Modifier.width(28.dp),
@@ -221,18 +296,15 @@ fun LineaCarritoItem(
                     Icon(Icons.Default.Add, null, Modifier.size(16.dp), tint = PosBlue)
                 }
             }
-
             Spacer(Modifier.width(8.dp))
-
             Text(
-                text = "\$$subtotal",
+                "\$$subtotal",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 color = PosBlue,
                 modifier = Modifier.width(72.dp),
                 textAlign = TextAlign.End
             )
-
             IconButton(onClick = onEliminar, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.Delete, null, Modifier.size(18.dp), tint = PosRed)
             }

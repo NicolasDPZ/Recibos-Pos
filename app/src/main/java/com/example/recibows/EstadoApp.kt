@@ -1,41 +1,32 @@
 package com.example.recibows
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import com.example.recibows.componentes.LineaCarrito
 import com.example.recibows.componentes.ProductoUI
-import com.example.recibows.componentes.productosEjemplo
-// Estado global compartido entre Venta, Carrito y Recibo.
-// Cuando conectes Room, este objeto desaparece y lo reemplaza el ViewModel.
+import com.example.recibows.data.AtendienteEntity
+
 object EstadoApp {
 
-    // ── Productos ──────────────────────────────────────────────────────────────
-    val productos = mutableStateListOf<ProductoUI>().also {
-        it.addAll(productosEjemplo)
-    }
+    // ── Atendiente seleccionado ────────────────────────────────────────────────
+    var atendienteActual = mutableStateOf<AtendienteEntity?>(null)
+    var impresoraSeleccionada: android.bluetooth.BluetoothDevice? = null
 
-    fun agregarProducto(producto: ProductoUI) {
-        val nuevoId = (productos.maxOfOrNull { it.id } ?: 0) + 1
-        productos.add(producto.copy(id = nuevoId))
-    }
-
-    fun editarProducto(producto: ProductoUI) {
-        val idx = productos.indexOfFirst { it.id == producto.id }
-        if (idx >= 0) productos[idx] = producto
-    }
-
-    fun eliminarProducto(id: Int) {
-        productos.removeIf { it.id == id }
+    fun seleccionarAtendiente(atendiente: AtendienteEntity) {
+        atendienteActual.value = atendiente
     }
 
     // ── Carrito ────────────────────────────────────────────────────────────────
     val carrito = mutableStateListOf<LineaCarrito>()
 
-    fun agregarAlCarrito(producto: ProductoUI) {
-        val idx = carrito.indexOfFirst { it.producto.id == producto.id }
+    fun agregarAlCarrito(producto: ProductoUI, cantidad: Int = 1, precioOverride: Int? = null) {
+        val precio = precioOverride ?: producto.precio
+        val productoFinal = producto.copy(precio = precio)
+        val idx = carrito.indexOfFirst { it.producto.id == productoFinal.id && it.producto.precio == precio }
         if (idx >= 0) {
-            carrito[idx] = carrito[idx].copy(cantidad = carrito[idx].cantidad + 1)
+            carrito[idx] = carrito[idx].copy(cantidad = carrito[idx].cantidad + cantidad)
         } else {
-            carrito.add(LineaCarrito(producto, 1))
+            carrito.add(LineaCarrito(productoFinal, cantidad))
         }
     }
 

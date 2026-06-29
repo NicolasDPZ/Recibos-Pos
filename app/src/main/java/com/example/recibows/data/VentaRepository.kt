@@ -3,7 +3,6 @@ package com.example.recibows.data
 import android.content.Context
 import com.example.recibows.componentes.LineaCarrito
 import kotlinx.coroutines.flow.Flow
-import kotlin.collections.map
 
 class VentaRepository(context: Context) {
 
@@ -11,13 +10,18 @@ class VentaRepository(context: Context) {
 
     val ventas: Flow<List<VentaConItems>> = dao.getTodasConItems()
 
-    // Guarda la venta completa y retorna el id para el recibo
-    suspend fun guardarVenta(lineas: List<LineaCarrito>): Int {
+    suspend fun guardarVenta(
+        lineas: List<LineaCarrito>,
+        atendienteId: Int,
+        atendienteNombre: String
+    ): Int {
         val total = lineas.sumOf { it.subtotal }
-
-        val venta = VentaEntity(total = total)
+        val venta = VentaEntity(
+            total = total,
+            atendienteId = atendienteId,
+            atendienteNombre = atendienteNombre
+        )
         val ventaId = dao.insertarVenta(venta).toInt()
-
         val items = lineas.map { linea ->
             ItemVentaEntity(
                 ventaId        = ventaId,
@@ -27,11 +31,18 @@ class VentaRepository(context: Context) {
             )
         }
         dao.insertarItems(items)
-
         return ventaId
     }
 
-    suspend fun getVenta(ventaId: Int): VentaConItems? {
-        return dao.getVentaConItems(ventaId)
+    suspend fun getVenta(ventaId: Int): VentaConItems? = dao.getVentaConItems(ventaId)
+
+    // Ventas de hoy
+    fun getVentasHoy(): Flow<List<VentaConItems>> {
+        val inicioDia = System.currentTimeMillis() / 86400000 * 86400000
+        return dao.getVentasDesde(inicioDia)
     }
+
+    // Ventas por atendiente
+    fun getVentasPorAtendiente(atendienteId: Int): Flow<List<VentaConItems>> =
+        dao.getVentasPorAtendiente(atendienteId)
 }

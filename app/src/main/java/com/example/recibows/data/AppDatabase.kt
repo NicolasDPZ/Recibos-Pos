@@ -9,15 +9,17 @@ import androidx.room.RoomDatabase
     entities = [
         ProductoEntity::class,
         VentaEntity::class,
-        ItemVentaEntity::class
+        ItemVentaEntity::class,
+        AtendienteEntity::class
     ],
-    version = 2,                // subimos a 2 porque agregamos tablas
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun productoDao(): ProductoDao
     abstract fun ventaDao(): VentaDao
+    abstract fun atendienteDao(): AtendienteDao
 
     companion object {
         @Volatile
@@ -30,7 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "recibows_db"
                 )
-                    .fallbackToDestructiveMigration() // borra y recrea si cambia la versión
+                    .fallbackToDestructiveMigration()
                     .build().also { INSTANCE = it }
             }
         }

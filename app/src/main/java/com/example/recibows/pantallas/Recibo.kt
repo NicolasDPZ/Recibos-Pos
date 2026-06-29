@@ -63,14 +63,14 @@ import java.util.Locale
 fun Recibo(
     navController: NavController,
     ventaId: Int,
-    nombreNegocio: String = "RECIBO POS",
+    //editar el recibo para poder poner le nombre de negocio especial
+    nombreNegocio: String = "Guadalajara",
     vm: ReciboViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val venta by vm.venta.collectAsState()
 
-    // Carga la venta desde Room cuando se abre la pantalla
     LaunchedEffect(ventaId) {
         vm.cargarVenta(ventaId)
     }
@@ -100,7 +100,6 @@ fun Recibo(
     ) { padding ->
 
         if (venta == null) {
-            // Cargando...
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
@@ -119,6 +118,7 @@ fun Recibo(
     }
 }
 
+//poner el nombre del atendiente aca en el recibo
 @Composable
 private fun ContenidoRecibo(
     venta: VentaConItems,
@@ -224,7 +224,7 @@ private fun ContenidoRecibo(
             shape = RoundedCornerShape(24.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366))
         ) {
-            Text("📲  Compartir por WhatsApp", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text("Compartir por WhatsApp", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
         }
         BotonImprimir(venta = venta!!)
 

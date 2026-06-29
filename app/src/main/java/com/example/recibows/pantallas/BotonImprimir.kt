@@ -1,25 +1,13 @@
 package com.example.recibows.pantallas
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import android.annotation.SuppressLint
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,12 +15,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.recibows.EstadoApp
 import com.example.recibows.EstadoImpresion
 import com.example.recibows.ImpresionViewModel
 import com.example.recibows.data.VentaConItems
 import com.example.recibows.ui.theme.PosBlue
 import com.example.recibows.ui.theme.PosRed
 
+@SuppressLint("MissingPermission")
 @Composable
 fun BotonImprimir(
     venta: VentaConItems,
@@ -41,87 +31,137 @@ fun BotonImprimir(
 ) {
     val estado by vm.estado.collectAsState()
     var mostrarSelector by remember { mutableStateOf(false) }
-    var mensajeEstado   by remember { mutableStateOf("") }
 
-    // Actualiza el mensaje según el estado
-    LaunchedEffect(estado) {
-        mensajeEstado = when (estado) {
-            is EstadoImpresion.Conectando  -> "Conectando con impresora..."
-            is EstadoImpresion.Imprimiendo -> "Imprimiendo..."
-            is EstadoImpresion.Listo       -> "✅ Impreso correctamente"
-            is EstadoImpresion.Error       -> (estado as EstadoImpresion.Error).mensaje
-            else -> ""
-        }
-    }
+    val impresoraActual = EstadoApp.impresoraSeleccionada
+    val ocupado = estado == EstadoImpresion.Conectando || estado == EstadoImpresion.Imprimiendo
 
-    // Botón principal
-    Button(
-        onClick = { mostrarSelector = true },
-        enabled = estado == EstadoImpresion.Inactivo || estado == EstadoImpresion.Listo || estado is EstadoImpresion.Error,
-        modifier = Modifier.fillMaxWidth().height(50.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = PosBlue)
-    ) {
-        when (estado) {
-            is EstadoImpresion.Conectando,
-            is EstadoImpresion.Imprimiendo -> {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.height(20.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+
+        // Si ya hay impresora seleccionada muestra el nombre
+        if (impresoraActual != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🖨️ ${impresoraActual.name}",
+                    fontSize = 12.sp,
+                    color = PosBlue,
+                    fontWeight = FontWeight.SemiBold
+                )
+                // Botón para cambiar impresora
+                TextButton(
+                    onClick = { mostrarSelector = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Icon(Icons.Default.Settings, null, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(2.dp))
+                    Text("Cambiar", fontSize = 11.sp)
+                }
             }
-            else -> Text("🖨️  Imprimir ticket", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
+
+        // Botón principal de imprimir
+        Button(
+            onClick = {
+                if (impresoraActual == null) {
+                    // Primera vez: mostrar selector
+                    mostrarSelector = true
+                } else {
+                    // Ya tiene impresora: imprimir directo
+                    vm.resetEstado()
+                    vm.imprimir(venta, nombreNegocio)
+                }
+            },
+            enabled = !ocupado,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = PosBlue)
+        ) {
+            when (estado) {
+                is EstadoImpresion.Conectando  -> {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Conectando...", fontSize = 15.sp)
+                }
+                is EstadoImpresion.Imprimiendo -> {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Imprimiendo...", fontSize = 15.sp)
+                }
+                is EstadoImpresion.Listo -> {
+                    Text("✅ Impreso", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+                else -> {
+                    Icon(Icons.Default.Print, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (impresoraActual == null) "Seleccionar impresora" else "Imprimir ticket",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // Mensaje de error
+        if (estado is EstadoImpresion.Error) {
+            Text(
+                text = (estado as EstadoImpresion.Error).mensaje,
+                fontSize = 12.sp,
+                color = PosRed,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 
-    // Mensaje de estado debajo del botón
-    if (mensajeEstado.isNotBlank()) {
-        Text(
-            text = mensajeEstado,
-            fontSize = 12.sp,
-            color = if (estado is EstadoImpresion.Error) PosRed else Color.Gray,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-    }
-
-    // Diálogo selector de impresora
+    // Selector de impresora
     if (mostrarSelector) {
         val dispositivos = vm.dispositivosEmparejados
-
         AlertDialog(
             onDismissRequest = { mostrarSelector = false },
             title = { Text("Seleccionar impresora", fontWeight = FontWeight.SemiBold) },
             text = {
-                if (dispositivos.isEmpty()) {
-                    Text(
-                        "No hay dispositivos Bluetooth emparejados.\n\nVe a Ajustes → Bluetooth y empareja la impresora PT210 primero.",
-                        fontSize = 13.sp,
-                        color = Color.Gray
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Dispositivos emparejados:", fontSize = 12.sp, color = Color.Gray)
-                        Divider()
+                Column {
+                    if (dispositivos.isEmpty()) {
+                        Text(
+                            "No hay dispositivos Bluetooth emparejados.\n\nVe a Ajustes → Bluetooth y empareja la impresora PT210 primero.",
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
+                    } else {
+                        Text("Toca para seleccionar e imprimir:", fontSize = 12.sp, color = Color.Gray)
+                        Spacer(Modifier.height(8.dp))
                         dispositivos.forEach { device ->
+                            val esActual = EstadoApp.impresoraSeleccionada?.address == device.address
                             TextButton(
                                 onClick = {
+                                    // Guarda la impresora e imprime de una
+                                    vm.seleccionarDispositivo(device)
                                     mostrarSelector = false
                                     vm.resetEstado()
-                                    vm.imprimir(device, venta, nombreNegocio)
+                                    vm.imprimirEn(device, venta, nombreNegocio)
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Column(
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalAlignment = Alignment.Start
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = device.name ?: "Dispositivo desconocido",
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 14.sp
-                                    )
-                                    Text(
-                                        text = device.address,
-                                        fontSize = 11.sp,
-                                        color = Color.Gray
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = device.name ?: "Dispositivo desconocido",
+                                            fontWeight = if (esActual) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (esActual) PosBlue else Color.Black,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(device.address, fontSize = 11.sp, color = Color.Gray)
+                                    }
+                                    if (esActual) {
+                                        Text("✓ Actual", fontSize = 11.sp, color = PosBlue)
+                                    }
                                 }
                             }
                             Divider()
@@ -131,9 +171,7 @@ fun BotonImprimir(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { mostrarSelector = false }) {
-                    Text("Cancelar")
-                }
+                TextButton(onClick = { mostrarSelector = false }) { Text("Cancelar") }
             }
         )
     }
